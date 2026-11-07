@@ -5,6 +5,7 @@ export const pool = new pg.Pool({
   ...env.db,
   ssl: {
     rejectUnauthorized: false,
+    servername: env.db.host,
   },
 });
 
