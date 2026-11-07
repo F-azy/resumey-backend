@@ -2,8 +2,14 @@ import 'dotenv/config';
 
 export const env = {
   port: process.env.PORT || 3001,
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  // Comma-separated list of allowed frontend origins. Supports * wildcards, e.g.
+  // https://resumey-swart.vercel.app,https://resumey-*-f-azys-projects.vercel.app
+  clientUrls: (process.env.CLIENT_URL || 'http://localhost:5173')
+    .split(',')
+    .map((u) => u.trim().replace(/\/$/, ''))
+    .filter(Boolean),
 
+  // Hosted (Render): set DATABASE_URL. Local: leave it empty and use DB_* values.
   databaseUrl: process.env.DATABASE_URL,
   dbSsl: process.env.DB_SSL === 'true',
   db: {
