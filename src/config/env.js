@@ -20,6 +20,13 @@ export const env = {
     database: process.env.DB_NAME || 'resumey',
   },
 
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
+    folder: process.env.CLOUDINARY_FOLDER || 'resumey/profile-images',
+  },
+
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   groqApiKey: process.env.GROQ_API_KEY,

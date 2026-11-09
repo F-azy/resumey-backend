@@ -5,7 +5,7 @@ import { initDb } from './config/initDb.js';
 async function start() {
   try {
     await initDb();
-    app.listen(env.port, () => console.log(`API running on http://localhost:${env.port}`));
+    app.listen(env.port, () => console.log(`APi`));
   } catch (err) {
     console.error('Failed to start:', err.message);
     process.exit(1);

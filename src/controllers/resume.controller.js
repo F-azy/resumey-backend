@@ -1,41 +1,40 @@
 import * as Resume from '../models/resume.model.js';
 import * as Template from '../models/template.model.js';
-import { generateLatex } from '../services/groq.service.js';
-import { compileToPdf } from '../services/latex.service.js';
+import { extractResume, refineResume } from '../services/groq.service.js';
+import { extractText } from '../services/fileText.service.js';
+import { compileResume } from '../services/latex.service.js';
+import { normalizeResume } from '../utils/resumeSchema.js';
 import { httpError } from '../utils/httpError.js';
 
-export async function generate(req, res, next) {
+export async function parse(req, res, next) {
   try {
-    const { details, jobDescription, templateId, title } = req.body;
-    if (!details?.trim()) throw httpError(400, 'details is required');
-
-    const template = templateId ? await Template.findById(templateId) : await Template.findFirst();
-    if (!template) throw httpError(404, 'Template not found');
-
-    const latex = await generateLatex({ template: template.latex_source, details, jobDescription });
-    const resume = await Resume.create({
-      userId: req.user.id,
-      templateId: template.id,
-      title: title?.trim() || `Resume ${new Date().toISOString().slice(0, 10)}`,
-      details,
-      jobDescription,
-      latex,
-    });
-    res.status(201).json({ latex, resume });
+    if (!req.file) throw httpError(400, 'file is required');
+    const text = await extractText(req.file);
+    if (text.trim().length < 30) throw httpError(422, 'No text found in this file. Scanned PDFs are not supported.');
+    res.json({ data: await extractResume(text) });
   } catch (err) {
     next(err);
   }
 }
 
-export async function compile(req, res, next) {
+export async function generate(req, res, next) {
   try {
-    const { latex, resumeId } = req.body;
-    if (!latex?.trim()) throw httpError(400, 'latex is required');
+    const { data, jobDescription, templateId, title, useAi = true } = req.body;
+    if (!data) throw httpError(400, 'data is required');
 
-    if (resumeId && !(await Resume.updateLatex(resumeId, req.user.id, latex))) {
-      throw httpError(404, 'Resume not found');
-    }
-    res.type('application/pdf').send(await compileToPdf(latex));
+    let resumeData = normalizeResume(data);
+    if (!resumeData.personal.fullName) throw httpError(400, 'Full name is required');
+    if (useAi) resumeData = await refineResume(resumeData, jobDescription);
+
+    const template = templateId ? await Template.findById(templateId) : await Template.findFirst();
+    const resume = await Resume.create({
+      userId: req.user.id,
+      templateId: template?.id,
+      title: title?.trim() || `${resumeData.personal.fullName} - Resume`,
+      data: resumeData,
+      jobDescription,
+    });
+    res.status(201).json({ resume });
   } catch (err) {
     next(err);
   }
@@ -54,6 +53,38 @@ export async function getOne(req, res, next) {
     const resume = await Resume.findById(req.params.id, req.user.id);
     if (!resume) throw httpError(404, 'Resume not found');
     res.json({ resume });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function update(req, res, next) {
+  try {
+    const { title, data } = req.body;
+    const resume = await Resume.update({
+      id: req.params.id,
+      userId: req.user.id,
+      title,
+      data: data ? normalizeResume(data) : null,
+    });
+    if (!resume) throw httpError(404, 'Resume not found');
+    res.json({ resume });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Saves any edits that are sent, then returns the PDF
+export async function pdf(req, res, next) {
+  try {
+    const { title, data } = req.body;
+    const id = req.params.id;
+    const resume = data
+      ? await Resume.update({ id, userId: req.user.id, title, data: normalizeResume(data) })
+      : await Resume.findById(id, req.user.id);
+    if (!resume) throw httpError(404, 'Resume not found');
+    if (!resume.data) throw httpError(400, 'This resume has no editable content');
+    res.type('application/pdf').send(await compileResume(resume.data));
   } catch (err) {
     next(err);
   }
