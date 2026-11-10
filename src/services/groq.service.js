@@ -39,9 +39,9 @@ keep dates and links exactly as written; "score" is a grade such as "CGPA: 8.07"
   return normalizeResume(parseJson(raw));
 }
 
-const LIST_KEYS = ['education', 'skills', 'projects', 'experience', 'leadership', 'achievements'];
+const LIST_KEYS = ['education', 'skills', 'projects', 'experience', 'certifications', 'leadership', 'achievements'];
 
-export async function refineResume(data, jobDescription) {
+export async function refineResume(data, jobDescription, sections = []) {
   const system = `You improve resume content. You receive resume JSON and return the SAME JSON shape:
 ${RESUME_SHAPE}
 Rules:
@@ -49,6 +49,8 @@ Rules:
 - Keep every entry, name, date, email, phone and link unchanged.
 - Rewrite bullets to be concise and action-oriented, and fix grammar. Max 4 bullets per project and 3 per experience.
 - If a job description is given, put the most relevant skills first and make the headline fit the role, staying truthful.
+- This resume template uses these sections: ${sections.join(', ') || 'all'}. Only the content of those sections matters.
+- If "summary" is one of the sections and it is empty, write 2 or 3 sentences using only facts present in the resume.
 - Return ONLY the JSON object.`;
   const input = JSON.stringify({ ...data, personal: { ...data.personal, photoUrl: undefined } });
   const user = `RESUME JSON:\n${input}\n\nJOB DESCRIPTION:\n${jobDescription?.trim() || 'None'}`;
@@ -58,6 +60,7 @@ Rules:
   // Safety net: never lose content or contact details because of the AI step.
   refined.personal = { ...data.personal, headline: refined.personal.headline || data.personal.headline };
   refined.additional = data.additional;
+  refined.summary = refined.summary || data.summary;
   for (const key of LIST_KEYS) {
     if (!refined[key].length && data[key].length) refined[key] = data[key];
   }

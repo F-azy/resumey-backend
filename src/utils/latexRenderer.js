@@ -1,3 +1,5 @@
+import { normalizeConfig, titleOf } from './templateConfig.js';
+
 const PREAMBLE = String.raw`\documentclass[a4paper,11pt]{article}
 \usepackage[margin=0.5in]{geometry}
 \usepackage{titlesec}
@@ -90,62 +92,70 @@ function header(p, photo) {
 `;
 }
 
-export function renderResume(d, { photo = false } = {}) {
-  const education = blocks(
-    d.education
-      .filter((e) => e.degree || e.institution)
-      .map((e) =>
-        lines2(
-          lineRow(`\\textbf{${esc(e.degree)}}`, esc(e.period)),
-          e.institution || e.score ? `${esc(e.institution)} \\hfill ${scoreText(e.score)}` : ''
-        )
-      )
-  );
-
-  const skills = d.skills
-    .filter((s) => s.items)
-    .map((s) => `\\noindent${s.label ? `\\textbf{${esc(s.label)}:} ` : ''}${esc(s.items)}`)
-    .join(' \\\\\n');
-
-  const projects = blocks(
-    d.projects
-      .filter((x) => x.name)
-      .map((x) => {
-        const sub = join([esc(x.subtitle), x.link && link(x.link, '\\textbf{View}')], SEP);
-        return lines2(lineRow(`\\textbf{${esc(x.name)}}`, x.tech ? `\\textbf{${esc(x.tech)}}` : ''), sub) + bullets(x.bullets);
-      })
-  );
-
-  const experience = blocks(
-    d.experience
-      .filter((x) => x.title)
-      .map((x) => lines2(lineRow(`\\textbf{${esc(x.title)}}`, esc(x.period)), esc(x.organization)) + bullets(x.bullets))
-  );
+export function renderResume(d, templateConfig, { photo = false } = {}) {
+  const config = normalizeConfig(templateConfig);
 
   const titled = (list) =>
     blocks(list.filter((x) => x.title).map((x) => lines2(lineRow(`\\textbf{${esc(x.title)}}`, esc(x.period)), esc(x.description))));
 
-  const { languages, hobbies } = d.additional;
-  const additional =
-    languages && hobbies
-      ? `\\noindent\n\\textbf{Languages:} ${esc(languages)}\n\\hfill\n\\textbf{Hobbies:} ${esc(hobbies)}`
-      : languages
-        ? `\\noindent\\textbf{Languages:} ${esc(languages)}`
-        : hobbies
-          ? `\\noindent\\textbf{Hobbies:} ${esc(hobbies)}`
-          : '';
+  const renderers = {
+    summary: () => (d.summary ? `\\noindent ${esc(d.summary)}` : ''),
+
+    education: () =>
+      blocks(
+        d.education
+          .filter((e) => e.degree || e.institution)
+          .map((e) =>
+            lines2(
+              lineRow(`\\textbf{${esc(e.degree)}}`, esc(e.period)),
+              e.institution || e.score ? `${esc(e.institution)} \\hfill ${scoreText(e.score)}` : ''
+            )
+          )
+      ),
+
+    skills: () =>
+      d.skills
+        .filter((s) => s.items)
+        .map((s) => `\\noindent${s.label ? `\\textbf{${esc(s.label)}:} ` : ''}${esc(s.items)}`)
+        .join(' \\\\\n'),
+
+    projects: () =>
+      blocks(
+        d.projects
+          .filter((x) => x.name)
+          .map((x) => {
+            const sub = join([esc(x.subtitle), x.link && link(x.link, '\\textbf{View}')], SEP);
+            return lines2(lineRow(`\\textbf{${esc(x.name)}}`, x.tech ? `\\textbf{${esc(x.tech)}}` : ''), sub) + bullets(x.bullets);
+          })
+      ),
+
+    experience: () =>
+      blocks(
+        d.experience
+          .filter((x) => x.title)
+          .map((x) => lines2(lineRow(`\\textbf{${esc(x.title)}}`, esc(x.period)), esc(x.organization)) + bullets(x.bullets))
+      ),
+
+    certifications: () => titled(d.certifications),
+    leadership: () => titled(d.leadership),
+    achievements: () => titled(d.achievements),
+
+    additional: () => {
+      const { languages, hobbies } = d.additional;
+      if (languages && hobbies) {
+        return `\\noindent\n\\textbf{Languages:} ${esc(languages)}\n\\hfill\n\\textbf{Hobbies:} ${esc(hobbies)}`;
+      }
+      if (languages) return `\\noindent\\textbf{Languages:} ${esc(languages)}`;
+      if (hobbies) return `\\noindent\\textbf{Hobbies:} ${esc(hobbies)}`;
+      return '';
+    },
+  };
 
   return [
     PREAMBLE,
     '\\begin{document}',
     header(d.personal, photo),
-    section('Education', education),
-    section('Technical Skills', skills),
-    section('Projects', projects),
-    section('Experience', experience),
-    section('Leadership \\& Community Involvement', titled(d.leadership)),
-    section('Achievements \\& Recognitions', titled(d.achievements)),
-    section('Additional Information', additional),
+    ...config.sections.map((key) => section(esc(titleOf(config, key)), renderers[key]())),
     '\\end{document}',
     '',
   ].join('\n');

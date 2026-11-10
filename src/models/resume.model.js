@@ -42,7 +42,12 @@ export const findAllByUser = async (userId) => {
 };
 
 export const findById = async (id, userId) => {
-  const { rows } = await query('SELECT * FROM resumes WHERE id = $1 AND user_id = $2', [id, userId]);
+  const { rows } = await query(
+    `SELECT r.*, t.slug AS template_slug, t.name AS template_name, t.config AS template_config
+     FROM resumes r LEFT JOIN templates t ON t.id = r.template_id
+     WHERE r.id = $1 AND r.user_id = $2`,
+    [id, userId]
+  );
   return rows[0];
 };
 

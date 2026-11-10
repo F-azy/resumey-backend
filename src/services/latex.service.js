@@ -14,14 +14,14 @@ async function build(latex, extraResources = []) {
 // Cloudinary delivers the image as a JPG, which pdflatex can embed.
 const asJpg = (u) => u.replace('/upload/', '/upload/f_jpg/');
 
-export async function compileResume(data) {
+export async function compileResume(data, templateConfig) {
   const photoUrl = data.personal.photoUrl;
   if (photoUrl) {
     try {
-      return await build(renderResume(data, { photo: true }), [{ path: 'photo.jpg', url: asJpg(photoUrl) }]);
+      return await build(renderResume(data, templateConfig, { photo: true }), [{ path: 'photo.jpg', url: asJpg(photoUrl) }]);
     } catch {
       // The photo could not be embedded; fall back to the resume without it.
     }
   }
-  return build(renderResume(data, { photo: false }));
+  return build(renderResume(data, templateConfig, { photo: false }));
 }

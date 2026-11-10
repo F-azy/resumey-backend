@@ -7,10 +7,12 @@ const joined = (v) => (Array.isArray(v) ? v.map(str).filter(Boolean).join(', ') 
 // Shape sent to the AI. Keep in sync with normalizeResume.
 export const RESUME_SHAPE = `{
   "personal": {"fullName":"","headline":"","email":"","phone":"","location":"","linkedin":"","github":"","website":""},
+  "summary": "",
   "education": [{"degree":"","institution":"","period":"","score":""}],
   "skills": [{"label":"","items":"comma separated"}],
   "projects": [{"name":"","tech":"","subtitle":"","link":"","bullets":[""]}],
   "experience": [{"title":"","organization":"","period":"","bullets":[""]}],
+  "certifications": [{"title":"","period":"","description":""}],
   "leadership": [{"title":"","period":"","description":""}],
   "achievements": [{"title":"","period":"","description":""}],
   "additional": {"languages":"","hobbies":""}
@@ -27,6 +29,7 @@ export function normalizeResume(raw) {
       location: str(p.location), linkedin: str(p.linkedin), github: str(p.github), website: str(p.website),
       photoUrl: str(p.photoUrl),
     },
+    summary: str(r.summary),
     education: arr(r.education).map((e) => ({
       degree: str(o(e).degree), institution: str(o(e).institution), period: str(o(e).period), score: str(o(e).score),
     })),
@@ -38,6 +41,7 @@ export function normalizeResume(raw) {
     experience: arr(r.experience).map((x) => ({
       title: str(o(x).title), organization: str(o(x).organization), period: str(o(x).period), bullets: lines(o(x).bullets),
     })),
+    certifications: arr(r.certifications).map(entry),
     leadership: arr(r.leadership).map(entry),
     achievements: arr(r.achievements).map(entry),
     additional: { languages: joined(a.languages), hobbies: joined(a.hobbies) },
